@@ -1,0 +1,98 @@
+---
+title: 'Reproducible Research: Peer Assessment 1'
+output:
+  html_document:
+    keep_md: yes
+  pdf_document: default
+---
+
+## Loading and preprocessing the data
+
+Uncompress and read the activity data.
+```{r}
+data <- read.csv(unz("activity.zip", "activity.csv"))
+```
+
+Some libraries are required for processing and plotting.
+```{r message=FALSE}
+require(plyr)
+require(ggplot2)
+```
+
+## What is the mean total number of steps taken per day?
+
+First, we calculate the total number of steps taken per day.
+
+```{r message=FALSE}
+steps_by_day <- ddply(data, ~date, summarize, steps=sum(steps))
+steps_by_day <- steps_by_day[!is.na(steps_by_day$steps),]
+head(steps_by_day, na.rm=T)
+```
+
+The following histogram shows the total number of steps taken each day.
+
+```{r}
+hist(steps_by_day$steps, breaks = 30, col="red", xlab="Number of Steps", main="Figure 1: Daily Steps.")
+```
+
+The mean and median of steps taken per day are:
+
+```{r}
+mean(steps_by_day$steps)
+```
+
+```{r}
+median(steps_by_day$steps)
+```
+
+
+## What is the average daily activity pattern?
+
+A time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis).
+
+```{r}
+steps_by_interval <- ddply(data, ~interval, summarise, mean = mean(steps, na.rm = T))
+
+p <- ggplot(steps_by_interval, aes(interval, mean)) + geom_line()
+p <- p + ggtitle("Average daily activity pattern")
+p + xlab("5-minute Interval") + ylab("Number of steps, averaged across all days.")
+```
+
+The 5-minute **interval that** on average across all the days in the dataset **contains the maximum number of steps** is **`r steps_by_interval$interval[which.max(steps_by_interval$mean)]`**.
+
+## Imputing missing values
+
+There are a number of days/intervals where there are missing values (coded as 'NA').
+
+```{r}
+missing <- is.na(data$steps)
+```
+
+The **total number of missing values** in the dataset is **`r sum(missing)`**.
+
+We define an imputation function that replaces missing values with the mean for the missing five minute interval among all days. We use the function to create new dataset:
+
+```{r}
+impute <- function(x) { replace(x, is.na(x), mean(x, na.rm = TRUE)) }
+imputed = ddply(data, ~ interval, transform, steps = impute(steps))
+
+imputed_steps_by_day <- ddply(imputed, ~date, summarize, steps=sum(steps))
+imputed_steps_by_day <- imputed_steps_by_day[!is.na(imputed_steps_by_day$steps),]
+```
+
+The mean and median total number of steps taken per day:
+```{r}
+mean(imputed$steps, na.rm = TRUE)
+```
+```{r}
+median(imputed$steps, na.rm = TRUE)
+```
+
+Using the mean value for imputing missing values should not affect calculated mean.  
+While the median can be affected when mean and median differ much, this does not seem to be the case here.
+
+The following figure shows the total number of steps taken each day.
+
+```{r}
+hist(imputed_steps_by_day$steps, breaks = 30, col="red", xlab="Number of Steps", main="Figure 2: Daily Steps based on data with imputed values.")
+```
